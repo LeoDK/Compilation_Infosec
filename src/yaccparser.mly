@@ -49,11 +49,11 @@
       integer : SYM_INTEGER { IntLeaf ($1) };
 
     lparams :
-      identifier rest_params { Node (Targ, [$1]) :: $2 }
+      identifier rest_params { Node (Tidentifier, [$1]) :: $2 }
       | { [] };
     rest_params :
       SYM_COMMA identifier rest_params {
-          Node (Targ, [$2]) :: $3
+          Node (Tidentifier, [$2]) :: $3
         }
       | { [] };
     instrs :

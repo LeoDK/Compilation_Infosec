@@ -68,7 +68,7 @@ let rec make_einstr_of_ast (a: tree) : instr res =
 
 let make_ident (a: tree) : string res =
   match a with
-  | Node (Targ, [s]) ->
+  | Node (Tidentifier, [s]) ->
     OK (string_of_stringleaf s)
   | a -> Error (Printf.sprintf "make_ident: unexpected AST: %s"
                   (string_of_ast a))

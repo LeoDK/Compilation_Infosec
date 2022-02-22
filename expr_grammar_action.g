@@ -9,6 +9,7 @@ non-terminals FUNDEF FUNDEFS
 non-terminals ADD_EXPRS ADD_EXPR
 non-terminals MUL_EXPRS MUL_EXPR
 non-terminals CMP_EXPRS CMP_EXPR
+non-terminals EQ_EXPRS EQ_EXPR
 axiom S
 {
   open Symbols
@@ -31,23 +32,26 @@ FUNDEFS -> { [] }
 FUNDEF -> SYM_IDENTIFIER SYM_LPARENTHESIS LPARAMS SYM_RPARENTHESIS INSTR { Node (Tfundef, [ Node (Tfunname, [StringLeaf $1]);
                                                                                             Node (Tfunargs, $3);
                                                                                             Node (Tfunbody, [$5]) ]) }
-LPARAMS -> SYM_IDENTIFIER REST_PARAMS { (StringLeaf $1)::$2 }
+LPARAMS -> IDENTIFIER REST_PARAMS { $1::$2 }
 LPARAMS -> { [] }
-REST_PARAMS -> SYM_COMMA SYM_IDENTIFIER REST_PARAMS { (StringLeaf $2)::$3 }
+REST_PARAMS -> SYM_COMMA IDENTIFIER REST_PARAMS { $2::$3 }
 REST_PARAMS -> { [] }
-INSTR -> SYM_IDENTIFIER SYM_ASSIGN EXPR SYM_SEMICOLON { Node (Tassign, [ (StringLeaf $1); $3 ]) }
+INSTR -> IDENTIFIER SYM_ASSIGN EXPR SYM_SEMICOLON { Node (Tassign, [ $1; $3 ]) }
 INSTR -> SYM_IF SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS BLOC ELSE { Node (Tif, [ $3; $5; $6 ]) }
 INSTR -> SYM_WHILE SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS INSTR { Node (Twhile, [ $3; $5 ]) }
 INSTR -> SYM_RETURN EXPR SYM_SEMICOLON { Node (Treturn, [$2]) }
 INSTR -> SYM_PRINT EXPR SYM_SEMICOLON { Node (Tprint, [$2]) }
 INSTR -> BLOC { $1 }
-EXPR -> CMP_EXPR CMP_EXPRS { resolve_associativity $1 $2 }
+EXPR -> EQ_EXPR EQ_EXPRS { resolve_associativity $1 $2 }
+EQ_EXPR -> CMP_EXPR CMP_EXPRS { resolve_associativity $1 $2 }
 CMP_EXPR -> ADD_EXPR ADD_EXPRS { resolve_associativity $1 $2 }
 ADD_EXPR -> MUL_EXPR MUL_EXPRS { resolve_associativity $1 $2 }
 MUL_EXPR -> FACTOR { $1 }
-FACTOR -> SYM_INTEGER { IntLeaf($1) }
-FACTOR -> SYM_IDENTIFIER { StringLeaf($1) }
+FACTOR -> IDENTIFIER { $1 }
+FACTOR -> INTEGER { $1 }
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS { $2 }
+IDENTIFIER -> SYM_IDENTIFIER { Node (Tidentifier, [StringLeaf $1]) }
+INTEGER -> SYM_INTEGER { Node (Tint, [IntLeaf $1]) }
 MUL_EXPRS -> SYM_ASTERISK MUL_EXPR MUL_EXPRS { (Tmul, $2)::$3 }
 MUL_EXPRS -> SYM_DIV MUL_EXPR MUL_EXPRS { (Tdiv, $2)::$3 }
 MUL_EXPRS -> SYM_MOD MUL_EXPR MUL_EXPRS { (Tmod, $2)::$3 }
@@ -55,13 +59,14 @@ MUL_EXPRS -> { [] }
 ADD_EXPRS -> SYM_PLUS ADD_EXPR ADD_EXPRS { (Tadd, $2)::$3 }
 ADD_EXPRS -> SYM_MINUS ADD_EXPR ADD_EXPRS { (Tsub, $2)::$3 }
 ADD_EXPRS -> { [] }
-CMP_EXPRS -> SYM_EQUALITY CMP_EXPR CMP_EXPRS { (Tceq, $2)::$3 }
 CMP_EXPRS -> SYM_NOTEQ CMP_EXPR CMP_EXPRS { (Tcne, $2)::$3 }
 CMP_EXPRS -> SYM_LT CMP_EXPR CMP_EXPRS { (Tclt, $2)::$3 }
 CMP_EXPRS -> SYM_LEQ CMP_EXPR CMP_EXPRS { (Tcle, $2)::$3 }
 CMP_EXPRS -> SYM_GT CMP_EXPR CMP_EXPRS { (Tcgt, $2)::$3 }
 CMP_EXPRS -> SYM_GEQ CMP_EXPR CMP_EXPRS { (Tcge, $2)::$3 }
 CMP_EXPRS -> { [] }
+EQ_EXPRS -> SYM_EQUALITY EQ_EXPR EQ_EXPRS { (Tceq, $2)::$3 }
+EQ_EXPRS -> { [] }
 ELSE -> SYM_ELSE INSTR { $2 }
 ELSE -> { NullLeaf }
 BLOC -> SYM_LBRACE INSTRS SYM_RBRACE { Node (Tblock, $2) }
