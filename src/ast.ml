@@ -26,7 +26,7 @@ open BatPrintf
 type tag = Tassign | Tif | Twhile | Tblock | Treturn | Tprint
          | Tint
          | Tadd | Tmul | Tdiv | Tmod | Txor | Tsub
-         | Tclt | Tcgt | Tcle | Tcge | Tceq | Tne
+         | Tclt | Tcgt | Tcle | Tcge | Tceq | Tcne
          | Tneg
          | Tlistglobdef
          | Tfundef | Tfunname | Tfunargs | Tfunbody
@@ -65,7 +65,7 @@ let string_of_tag = function
   | Tcle -> "Tcle"
   | Tcge -> "Tcge"
   | Tceq -> "Tceq"
-  | Tne -> "Tne"
+  | Tcne -> "Tcne"
   | Tneg -> "Tneg"
   | Tlistglobdef -> "Tlistglobdef"
   | Tfundef -> "Tfundef"

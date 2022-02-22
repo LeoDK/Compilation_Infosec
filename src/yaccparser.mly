@@ -76,7 +76,7 @@
 
       expr :
         | expr SYM_EQUALITY expr { Node (Tceq, [$1; $3]) }
-        | expr SYM_NOTEQ expr { Node (Tne, [$1; $3]) }
+        | expr SYM_NOTEQ expr { Node (Tcne, [$1; $3]) }
         | expr SYM_PLUS expr { Node (Tadd, [$1; $3]) }
         | expr SYM_MINUS expr { Node (Tsub, [$1; $3]) }
         | expr SYM_ASTERISK expr { Node (Tmul, [$1; $3]) }

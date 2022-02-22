@@ -20,7 +20,7 @@ let tag_is_binop =
   | Tcge -> true
   | Tcgt -> true
   | Tceq -> true
-  | Tne  -> true
+  | Tcne  -> true
   | _    -> false
 
 let binop_of_tag =
@@ -36,7 +36,7 @@ let binop_of_tag =
   | Tcge -> Ecge
   | Tcgt -> Ecgt
   | Tceq -> Eceq
-  | Tne -> Ecne
+  | Tcne -> Ecne
   | _ -> assert false
 
 (* [make_eexpr_of_ast a] builds an expression corresponding to a tree [a]. If
