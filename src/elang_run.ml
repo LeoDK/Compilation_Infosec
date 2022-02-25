@@ -81,8 +81,7 @@ let eval_efun oc (st: int state) ({ funargs; funbody}: efun)
 
    - [Error msg] lorsqu'une erreur survient.
    *)
-let eval_eprog oc (ep: eprog) (memsize: int) (params: int list)
-  : int option res =
+let eval_eprog oc (ep: eprog) (memsize: int) (params: int list) : int option res =
   let st = init_state memsize in
   find_function ep "main" >>= fun f ->
   (* ne garde que le nombre nécessaire de paramètres pour la fonction "main". *)
