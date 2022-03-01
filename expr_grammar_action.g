@@ -47,7 +47,7 @@ EQ_EXPR -> CMP_EXPR CMP_EXPRS { resolve_associativity $1 $2 }
 CMP_EXPR -> ADD_EXPR ADD_EXPRS { resolve_associativity $1 $2 }
 ADD_EXPR -> MUL_EXPR MUL_EXPRS { resolve_associativity $1 $2 }
 MUL_EXPR -> FACTOR { $1 }
-FACTOR -> SYM_MINUS FACTOR { Node (Tmul, [Node (Tint, [IntLeaf(-1)]); $2]) }
+FACTOR -> SYM_MINUS FACTOR { Node (Tneg, [$2]) }
 FACTOR -> IDENTIFIER { $1 }
 FACTOR -> INTEGER { $1 }
 FACTOR -> SYM_LPARENTHESIS EXPR SYM_RPARENTHESIS { $2 }
