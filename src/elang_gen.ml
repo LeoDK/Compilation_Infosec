@@ -78,15 +78,10 @@ let rec make_einstr_of_ast (a: tree) : instr res =
         OK (Iassign(varname, expr))
 
     | Node (Tif, [e;i1;i2]) ->
-        make_eexpr_of_ast e >>= fun expr -> (* with else *)
+        make_eexpr_of_ast e >>= fun expr ->
         make_einstr_of_ast i1 >>= fun instr1 ->
         make_einstr_of_ast i2 >>= fun instr2 ->
         OK (Iif (expr, instr1, instr2))
-
-    | Node (Tif, [e;i]) -> (* no else *)
-        make_eexpr_of_ast e >>= fun expr ->
-        make_einstr_of_ast i >>= fun instr ->
-        OK (Iif (expr, instr, Iblock []))
 
     | Node (Twhile, [e;i]) ->
         make_eexpr_of_ast e >>= fun expr ->
@@ -104,6 +99,9 @@ let rec make_einstr_of_ast (a: tree) : instr res =
     | Node (Tprint, [e]) ->
         make_eexpr_of_ast e >>= fun expr ->
         OK (Iprint expr)
+
+    | NullLeaf ->
+        OK (Iblock [])
 
     | _ -> Error (Printf.sprintf "Unacceptable ast in make_einstr_of_ast %s"
                     (string_of_ast a))

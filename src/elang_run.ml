@@ -83,7 +83,7 @@ let rec eval_einstr (oc: Format.formatter) (st: int state) (ins: instr) :
   | Ireturn (ret_expr) -> eval_eexpr st ret_expr >>= fun expr_res ->
                           OK(Some expr_res, st)
   | Iprint (print_expr) -> eval_eexpr st print_expr >>= fun print_expr ->
-                           let _ = Format.fprintf oc "%d" print_expr in
+                           let _ = Format.fprintf oc "%d\n" print_expr in
                            OK(None, st)
 
 (* [eval_efun oc st f fname vargs] évalue la fonction [f] (dont le nom est
