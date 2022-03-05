@@ -8,3 +8,6 @@ This is a simple **E compiler** (which will be further extended to support C lan
 The compiler is not complete yet. For now supported features include :
  - lexer (token generator) suited for E language
  - LL(1) parser, generated with [ALPAGA](https://gitlab-research.centralesupelec.fr/cidre-public/compilation/infosec-ecomp/-/tree/master/alpaga) (An Ll(1) PArser GenerAtor)
+ - E program generator (from AST) and interpreter (from E program)
+ - Liveliness analysis
+ - Dead assignment and NOP elimination
