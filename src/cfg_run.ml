@@ -66,5 +66,3 @@ let eval_cfgprog oc cp memsize params =
   let params = take n params in
   eval_cfgfun oc st "main" f params >>= fun (v, st) ->
   OK v
-
-

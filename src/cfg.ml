@@ -5,7 +5,7 @@ open Batteries
 open BatList
 
 type expr =
-    Ebinop of binop * expr * expr
+  | Ebinop of binop * expr * expr
   | Eunop of unop * expr
   | Eint of int
   | Evar of string
