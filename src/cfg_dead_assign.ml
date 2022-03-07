@@ -16,10 +16,6 @@ open Options
 let dead_assign_elimination_fun ({ cfgfunargs; cfgfunbody; cfgentry } as f: cfg_fun) =
   let changed = ref false in
   let live = live_cfg_fun f in
-  let print_set s =
-    Set.fold (fun elem acc -> elem ^ " " ^ acc) s ""
-  in
-  let _ = Hashtbl.iter (fun key value -> Printf.printf "%d : %s\n" key (print_set value)) live in
   let cfgfunbody =
     Hashtbl.map (fun (n: int) (m: cfg_node) ->
       match m with
