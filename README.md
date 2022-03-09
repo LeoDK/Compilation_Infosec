@@ -11,3 +11,5 @@ The compiler is not complete yet. For now supported features include :
  - E program generator (from AST) and interpreter (from E program)
  - Liveliness analysis
  - Dead assignment and NOP elimination
+ - Efficient RTL linearizer
+ - Register allocation
