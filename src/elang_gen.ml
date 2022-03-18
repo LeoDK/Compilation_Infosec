@@ -49,6 +49,7 @@ let unop_of_tag =
   | Tneg -> Eneg
   | _ -> assert false
 
+
 (* [make_eexpr_of_ast a] builds an expression corresponding to a tree [a]. If
    the tree is not well-formed, fails with an [Error] message. *)
 let rec make_eexpr_of_ast (a: tree) : expr res =
@@ -61,6 +62,9 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
                                           OK (Eunop ((unop_of_tag t), expr))
     | Node (Tidentifier, [StringLeaf varname]) -> OK (Evar varname)
     | Node (Tint, [IntLeaf value]) -> OK (Eint value)
+    | Node (Tfuncall, [ Node (Tfunname, [ Node (Tidentifier, [StringLeaf funname]) ]);
+                        Node (Tfunargs, args) ]) -> exprs_of_args args >>= fun args_exprs ->
+                                                    OK (Efuncall (funname, args_exprs))
     | _ -> Error (Printf.sprintf "Unacceptable ast in make_eexpr_of_ast %s"
                  (string_of_ast a))
   in
@@ -68,6 +72,15 @@ let rec make_eexpr_of_ast (a: tree) : expr res =
   | OK o -> res
   | Error msg -> Error (Format.sprintf "In make_eexpr_of_ast %s:\n%s"
                           (string_of_ast a) msg)
+
+
+and exprs_of_args (args : tree list) : expr list res =
+  match args with
+  | h::t -> make_eexpr_of_ast h >>= fun h' ->
+            exprs_of_args t >>= fun t' ->
+            OK(h'::t')
+  | [] -> OK ([])
+
 
 let rec make_einstr_of_ast (a: tree) : instr res =
   let res =
@@ -96,9 +109,9 @@ let rec make_einstr_of_ast (a: tree) : instr res =
         make_eexpr_of_ast e >>= fun expr ->
         OK (Ireturn expr)
 
-    | Node (Tprint, [e]) ->
-        make_eexpr_of_ast e >>= fun expr ->
-        OK (Iprint expr)
+    | Node (Tfuncall, [ Node (Tfunname, [ Node (Tidentifier, [StringLeaf funname]) ]);
+                        Node (Tfunargs, args) ]) -> exprs_of_args args >>= fun args' ->
+                                                    OK (Ifuncall (funname, args'))
 
     | NullLeaf ->
         OK (Iblock [])

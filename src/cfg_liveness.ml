@@ -12,6 +12,12 @@ let rec vars_in_expr (e: expr) =
   | Eunop (op, e') -> vars_in_expr e'
   | Eint (value) -> Set.empty
   | Evar (var_name) -> Set.singleton var_name
+  | Ecall (fname, args) -> vars_in_args args
+
+and vars_in_args (e: expr list) =
+  match e with
+  | h::t -> Set.union (vars_in_expr h) (vars_in_args t)
+  | [] -> Set.empty
 
 (* [live_cfg_node node live_after] renvoie l'ensemble des variables vivantes
    avant un nœud [node], étant donné l'ensemble [live_after] des variables
@@ -20,9 +26,9 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
   match node with
   | Cassign (v, e, s) -> Set.union (vars_in_expr e) (Set.remove v live_after)
   | Creturn (e) -> vars_in_expr e
-  | Cprint (e, s) -> Set.union (vars_in_expr e) live_after
   | Ccmp (e, s1, s2) -> Set.union (vars_in_expr e) live_after
   | Cnop (s) -> live_after
+  | Ccall (fname, args, s) -> Set.union (vars_in_args args) live_after
 
 (* [live_after_node cfg n] renvoie l'ensemble des variables vivantes après le
    nœud [n] dans un CFG [cfg]. [lives] est l'état courant de l'analyse,
@@ -41,9 +47,6 @@ let live_after_node cfg n (lives: (int, string Set.t) Hashtbl.t) : string Set.t 
 let live_cfg_nodes cfg (lives : (int, string Set.t) Hashtbl.t) =
   let update (n: int) (node: cfg_node) (acc: bool) =
     let new_live = live_cfg_node node (live_after_node cfg n lives) in
-    let string_of_set s =
-      Set.fold (fun elem acc -> elem ^ " " ^ acc) s ""
-    in
     let changed = match Hashtbl.find_option lives n with
                   | Some old_live -> not (Set.equal old_live new_live)
                   | None -> not (Set.is_empty new_live )

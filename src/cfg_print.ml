@@ -9,6 +9,16 @@ let rec dump_cfgexpr : expr -> string = function
   | Eunop(u, e) -> Format.sprintf "(%s %s)" (dump_unop u) (dump_cfgexpr e)
   | Eint i -> Format.sprintf "%d" i
   | Evar s -> Format.sprintf "%s" s
+  | Ecall (fname, args) -> Format.sprintf "%s(%s)" fname (dump_cfgcall_args args)
+
+and dump_cfgcall_args (args: expr list) : string =
+  match args with
+  | h::t -> let tdump = (dump_cfgcall_args t) in
+            if String.length tdump <> 0 then
+              (dump_cfgexpr h) ^ "," ^ (dump_cfgcall_args t)
+            else
+              dump_cfgexpr h
+  | [] -> ""
 
 let dump_list_cfgexpr l =
   l |> List.map dump_cfgexpr |> String.concat ", "
@@ -17,22 +27,23 @@ let dump_list_cfgexpr l =
 let dump_arrows oc fname n (node: cfg_node) =
   match node with
   | Cassign (_, _, succ)
-  | Cprint (_, succ)
   | Cnop succ ->
     Format.fprintf oc "n_%s_%d -> n_%s_%d\n" fname n fname succ
   | Creturn _ -> ()
   | Ccmp (_, succ1, succ2) ->
     Format.fprintf oc "n_%s_%d -> n_%s_%d [label=\"then\"]\n" fname n fname succ1;
     Format.fprintf oc "n_%s_%d -> n_%s_%d [label=\"else\"]\n" fname n fname succ2
+  | Ccall (funname, args, s) ->
+    Format.fprintf oc "n_%s_%d -> n_%s_%d\n" fname n fname s
 
 
 let dump_cfg_node oc (node: cfg_node) =
   match node with
   | Cassign (v, e, _) -> Format.fprintf oc "%s = %s" v (dump_cfgexpr e)
-  | Cprint (e, _) -> Format.fprintf oc "print %s" (dump_cfgexpr e)
   | Creturn e -> Format.fprintf oc "return %s" (dump_cfgexpr e)
   | Ccmp (e, _, _) -> Format.fprintf oc "%s" (dump_cfgexpr e)
   | Cnop _ -> Format.fprintf oc "nop"
+  | Ccall (fname, args, s) -> Format.fprintf oc "call %s(%s)" fname (dump_cfgcall_args args)
 
 
 let dump_liveness_state oc ht state =

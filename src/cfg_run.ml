@@ -7,62 +7,80 @@ open Cfg
 open Utils
 open Builtins
 
-let rec eval_cfgexpr st (e: expr) : int res =
+let rec eval_cfgexpr oc st (cp: cprog) (e: expr) : (int * int state) res =
   match e with
   | Ebinop(b, e1, e2) ->
-    eval_cfgexpr st e1 >>= fun v1 ->
-    eval_cfgexpr st e2 >>= fun v2 ->
+    eval_cfgexpr oc st cp e1 >>= fun (v1,st) ->
+    eval_cfgexpr oc st cp e2 >>= fun (v2,st) ->
     let v = eval_binop b v1 v2 in
-    OK v
+    OK (v, st)
   | Eunop(u, e) ->
-    eval_cfgexpr st e >>= fun v1 ->
+    eval_cfgexpr oc st cp e >>= fun (v1,st) ->
     let v = (eval_unop u v1) in
-    OK v
-  | Eint i -> OK i
+    OK (v,st)
+  | Eint i -> OK (i,st)
   | Evar s ->
     begin match Hashtbl.find_option st.env s with
-      | Some v -> OK v
+      | Some v -> OK (v,st)
       | None -> Error (Printf.sprintf "Unknown variable %s\n" s)
     end
+  | Ecall (fname, args) ->
+    find_function cp fname >>= fun f ->
+    int_of_args oc st cp args >>= fun args' ->
+    eval_cfgfun oc st cp fname f args' >>= fun (ret, st) ->
+    (match ret with
+     | Some ret' -> OK (ret', st)
+     | None -> let arg_str = List.fold_left (fun acc elem -> acc ^ " " ^ (string_of_int elem)) "" args' in
+               Error (Format.sprintf "CFG: Called function %s(%s) but got no return value in expr" fname arg_str))
 
-let rec eval_cfginstr oc st ht (n: int): (int * int state) res =
+and eval_cfginstr oc st (cp: cprog) ht (n: int): (int option * int state) res =
   match Hashtbl.find_option ht n with
   | None -> Error (Printf.sprintf "Invalid node identifier\n")
   | Some node ->
     match node with
     | Cnop succ ->
-      eval_cfginstr oc st ht succ
-    | Cassign(v, e, succ) ->
-      eval_cfgexpr st e >>= fun i ->
+      eval_cfginstr oc st cp ht succ
+    | Cassign(v, e, s) ->
+      eval_cfgexpr oc st cp e >>= fun (i,st) ->
       Hashtbl.replace st.env v i;
-      eval_cfginstr oc st ht succ
+      eval_cfginstr oc st cp ht s
     | Ccmp(cond, i1, i2) ->
-      eval_cfgexpr st cond >>= fun i ->
-      if i = 0 then eval_cfginstr oc st ht i2 else eval_cfginstr oc st ht i1
+      eval_cfgexpr oc st cp cond >>= fun (i,st) ->
+      if i = 0 then eval_cfginstr oc st cp ht i2 else eval_cfginstr oc st cp ht i1
     | Creturn(e) ->
-      eval_cfgexpr st e >>= fun e ->
-      OK (e, st)
-    | Cprint(e, succ) ->
-      eval_cfgexpr st e >>= fun e ->
-      Format.fprintf oc "%d\n" e;
-      eval_cfginstr oc st ht succ
+      eval_cfgexpr oc st cp e >>= fun (e,st) ->
+      OK (Some e, st)
+    | Ccall (fname, args, s) ->
+      int_of_args oc st cp args >>= fun args' ->
+      (match find_function cp fname with
+       | OK f -> eval_cfgfun oc st cp fname f args'
+       | Error e -> do_builtin oc st.mem fname args' >>= fun ret ->
+                    OK (ret, st)) >>= fun (_, st') ->
+      eval_cfginstr oc st' cp ht s
 
-let eval_cfgfun oc st cfgfunname { cfgfunargs;
+and int_of_args (oc: Format.formatter) (st: int state) (cp: cprog) (args: expr list) : int list res =
+  match args with
+  | h::t -> eval_cfgexpr oc st cp h >>= fun (ret, st) ->
+            int_of_args oc st cp t >>= fun args_int ->
+            OK(ret::args_int)
+  | [] -> OK ([])
+
+and eval_cfgfun oc st cp cfgfunname { cfgfunargs;
                                       cfgfunbody;
-                                      cfgentry} vargs =
+                                      cfgentry} vargs : (int option * int state) res =
   let st' = { st with env = Hashtbl.create 17 } in
   match List.iter2 (fun a v -> Hashtbl.replace st'.env a v) cfgfunargs vargs with
-  | () -> eval_cfginstr oc st' cfgfunbody cfgentry >>= fun (v, st') ->
-    OK (Some v, {st' with env = st.env})
+  | () -> eval_cfginstr oc st' cp cfgfunbody cfgentry >>= fun (v, st') ->
+    OK (v, {st' with env = st.env})
   | exception Invalid_argument _ ->
     Error (Format.sprintf "CFG: Called function %s with %d arguments, expected %d.\n"
              cfgfunname (List.length vargs) (List.length cfgfunargs)
           )
 
-let eval_cfgprog oc cp memsize params =
+let eval_cfgprog oc (cp: cprog) memsize params =
   let st = init_state memsize in
   find_function cp "main" >>= fun f ->
   let n = List.length f.cfgfunargs in
   let params = take n params in
-  eval_cfgfun oc st "main" f params >>= fun (v, st) ->
+  eval_cfgfun oc st cp "main" f params >>= fun (v, st) ->
   OK v

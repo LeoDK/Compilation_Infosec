@@ -53,7 +53,6 @@ let to_yacc_token = function
 | SYM_LBRACKET -> Yaccparser.SYM_LBRACKET
 | SYM_RBRACKET -> Yaccparser.SYM_RBRACKET
 | SYM_ALLOC -> Yaccparser.SYM_ALLOC
-| SYM_PRINT -> Yaccparser.SYM_PRINT
 | SYM_EXTERN -> Yaccparser.SYM_EXTERN
 | SYM_INCLUDE(s) -> Yaccparser.SYM_INCLUDE s
 | SYM_AMPERSAND -> Yaccparser.SYM_AMPERSAND

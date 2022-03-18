@@ -8,7 +8,6 @@ open Rtl
 let gen_live (i: rtl_instr) =
   match i with
   | Rbinop (b, rd, rs1, rs2) -> Set.of_list [rs1; rs2]
-  | Rprint rs
   | Runop (_, _, rs) -> Set.singleton rs
   | Rconst (_, _) -> Set.empty
   | Rbranch (_, rs1, rs2, _) -> Set.of_list [rs1; rs2]
@@ -16,6 +15,7 @@ let gen_live (i: rtl_instr) =
   | Rmov (_, rs) -> Set.singleton rs
   | Rret r -> Set.singleton r
   | Rlabel _ -> Set.empty
+  | Rcall (ord, fname, rargs) -> List.fold_left (fun acc elem -> Set.add elem acc) Set.empty rargs
 
 let kill_live (i: rtl_instr) =
   match i with
@@ -24,10 +24,12 @@ let kill_live (i: rtl_instr) =
   | Rconst (rd, _)
   | Rmov (rd,_) -> Set.singleton rd
   | Rbranch (_, _, _, _)
-  | Rprint _
   | Rret _
   | Rjmp _
   | Rlabel _ -> Set.empty
+  | Rcall (ord, fname, rargs) -> (match ord with
+                                  | Some rd -> Set.singleton rd
+                                  | None -> Set.empty)
 
 let linear_succs (ins: rtl_instr) i labels =
   match ins with

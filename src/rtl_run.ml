@@ -69,14 +69,24 @@ let rec exec_rtl_instr oc rp rtlfunname f st (i: rtl_instr) =
       | Some s -> OK (Some s, st)
       | _ -> Error (Printf.sprintf "Ret on undefined register (%s)" (print_reg r))
     end
-  | Rprint r ->
-    begin match Hashtbl.find_option st.regs r with
-      | Some s ->
-        Format.fprintf oc "%d\n" s;
-        OK (None, st)
-      | _ -> Error (Printf.sprintf "Print on undefined register (%s)" (print_reg r))
-    end
   | Rlabel n -> OK (None, st)
+  | Rcall (ord, fname, rargs) ->
+    let args = List.map (fun elem -> Hashtbl.find st.regs elem) rargs in
+    begin match find_function rp fname with
+    | OK f -> begin match ord with
+              | Some rd -> exec_rtl_fun oc rp st fname f args >>= fun (v, st) ->
+                            (match v with
+                              | Some v' -> Hashtbl.replace st.regs rd v'; OK (None, st)
+                              | None -> Error (Printf.sprintf "Call function %s does not have a return value" fname))
+              | None -> exec_rtl_fun oc rp st fname f args
+              end
+    | Error e -> do_builtin oc st.mem fname args >>= fun ret ->
+                  begin match (ord, ret) with
+                    | Some rd, Some ret' -> Hashtbl.replace st.regs rd ret'
+                    | _ -> ()
+                  end;
+                  OK (None, st)
+    end
 
 and exec_rtl_instr_at oc rp rtlfunname ({ rtlfunbody;  } as f: rtl_fun) st i =
   match Hashtbl.find_option rtlfunbody i with
@@ -92,7 +102,7 @@ and exec_rtl_instrs oc rp rtlfunname f st l =
         exec_rtl_instr oc rp rtlfunname f st i
     ) (OK (None, st)) l
 
-and exec_rtl_fun oc rp st rtlfunname f params =
+and exec_rtl_fun oc rp st rtlfunname f params : (int option * state) res =
   let regs' = Hashtbl.create 17 in
   match List.iter2 (fun n v -> Hashtbl.replace regs' n v) f.rtlfunargs params with
   | exception Invalid_argument _ ->
@@ -118,5 +128,3 @@ and exec_rtl_prog oc rp memsize params =
   let params = take n params in
   exec_rtl_fun oc rp st "main" f params >>= fun (v, st) ->
   OK v
-
-

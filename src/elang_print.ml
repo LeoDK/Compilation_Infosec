@@ -26,6 +26,8 @@ let rec dump_eexpr = function
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)
   | Eint i -> Printf.sprintf "%d" i
   | Evar s -> Printf.sprintf "%s" s
+  | Efuncall (funname, args) -> let args_dump = List.fold_left (fun acc elem -> acc ^ (dump_eexpr elem)) "" args in
+                                Printf.sprintf "%s (%s)" funname args_dump
 
 let indent_size = 2
 let spaces n =
@@ -55,9 +57,16 @@ let rec dump_einstr_rec indent oc i =
   | Ireturn(e) ->
     print_spaces oc indent;
     Format.fprintf oc "return %s;\n" (dump_eexpr e)
-  | Iprint(e) ->
+  | Ifuncall(funname, args) ->
     print_spaces oc indent;
-    Format.fprintf oc "print %s;\n" (dump_eexpr e)
+    let args_dump = List.fold_left (fun acc elem -> acc ^ (dump_eexpr elem) ^ ",") "" args in
+    let args_dump_len = String.length args_dump in
+    let args_dump = if args_dump_len <> 0 then
+                      String.sub args_dump 0 (args_dump_len-1)
+                    else
+                      args_dump
+    in
+    Format.fprintf oc "call %s (%s);\n" funname args_dump
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 

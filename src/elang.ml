@@ -12,6 +12,7 @@ type expr =
   | Eunop of unop * expr
   | Eint of int
   | Evar of string
+  | Efuncall of string * expr list
 
 type instr =
   | Iassign of string * expr
@@ -19,7 +20,7 @@ type instr =
   | Iwhile of expr * instr
   | Iblock of instr list
   | Ireturn of expr
-  | Iprint of expr
+  | Ifuncall of string * expr list
 
 type efun = {
   funargs: ( string ) list;

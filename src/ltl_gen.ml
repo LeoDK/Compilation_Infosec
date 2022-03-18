@@ -216,18 +216,19 @@ let written_rtl_regs_instr (i: rtl_instr) =
   | Runop (_, rd, _)
   | Rconst (rd, _)
   | Rmov (rd, _) -> Set.singleton rd
-  | Rprint _
   | Rret _
   | Rlabel _
   | Rbranch (_, _, _, _)
   | Rjmp _ -> Set.empty
+  | Rcall (ord, fname, rargs) -> (match ord with
+                                  | Some rd -> Set.singleton rd
+                                  | None -> Set.empty)
 
 let read_rtl_regs_instr (i: rtl_instr) =
   match i with
   | Rbinop (_, _, rs1, rs2)
   | Rbranch (_, rs1, rs2, _) -> Set.of_list [rs1; rs2]
 
-  | Rprint rs
   | Runop (_, _, rs)
   | Rmov (_, rs)
   | Rret rs -> Set.singleton rs
@@ -235,6 +236,7 @@ let read_rtl_regs_instr (i: rtl_instr) =
   | Rlabel _
   | Rconst (_, _)
   | Rjmp _ -> Set.empty
+  | Rcall (ord, fname, rargs) -> List.fold_left (fun acc elem -> Set.add elem acc) Set.empty rargs
 
 let read_rtl_regs (l: rtl_instr list) =
   List.fold_left (fun acc i -> Set.union acc (read_rtl_regs_instr i))
@@ -301,28 +303,34 @@ let ltl_instrs_of_linear_instr fname live_out allocation
     load_loc reg_tmp1 allocation rs >>= fun (ls, rs) ->
     store_loc reg_tmp1 allocation rd >>= fun (ld, rd) ->
     OK (ls @ LMov(rd, rs) :: ld)
-  | Rprint r ->
-    let (save_a_regs, arg_saved, ofs) =
-      save_caller_save
-        (range 32)
-        (- (numspilled+1)) in
-    let parameter_passing =
-      match Hashtbl.find_option allocation r with
-      | None -> Error (Format.sprintf "Could not find allocation for register %d\n" r)
-      | Some (Reg rs) -> OK [LMov(reg_a0, rs)]
-      | Some (Stk o) -> OK [LLoad(reg_a0, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))]
-    in
-    parameter_passing >>= fun parameter_passing ->
-    OK (LComment "Saving a0-a7,t0-t6" :: save_a_regs @
-        LAddi(reg_sp, reg_s0, (Archi.wordsize ()) * (ofs + 1)) ::
-        parameter_passing @
-        LCall "print" ::
-        LComment "Restoring a0-a7,t0-t6" :: restore_caller_save arg_saved)
-
   | Rret r ->
     load_loc reg_tmp1 allocation r >>= fun (l,r) ->
     OK (l @ [LMov (reg_ret, r) ; LJmp epilogue_label])
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
+  | Rcall (ord, fname, rargs) ->  caller_save live_out allocation rargs >>= fun to_save ->
+                                  let to_save = Set.fold (fun elem acc -> acc @ [elem]) to_save [] in
+                                  let save_regs_instructions, arg_saved, ofs = save_caller_save to_save (-numspilled) in
+                                  (* Saving alive registers on stack (and therefore increasing the stack by decreasing sp) *)
+                                  let instrs = save_regs_instructions in
+                                  pass_parameters rargs allocation arg_saved >>= fun (parameter_passing_instructions, npush) ->
+                                  (* Pass parameters (some of them on the stack), call function, pop possible parameters on the stack *)
+                                  let instrs = instrs @ parameter_passing_instructions @ [LCall fname; LAddi (reg_sp, reg_sp, npush)] in
+                                  (* Put the result in rd if needed *)
+                                  (match ord with
+                                  (* get the real location associated with RTL register [rd] *)
+                                  | Some rd -> (match Hashtbl.find_option allocation rd with
+                                                | Some rd_alloc -> OK (instrs @ (make_loc_mov (Reg reg_a0) rd_alloc))
+                                                | None -> Error (Format.sprintf "Could not find allocation for RTL register %d\n" rd))
+                                  | None -> OK(instrs)) >>= fun instrs ->
+                                  (* Prevent [rd] from being restored *)
+                                  let arg_saved' = List.filter (fun (reg, ofs) -> (match ord with
+                                                                                   | Some rd -> if rd = reg then
+                                                                                                  false
+                                                                                                else true
+                                                                                   | None -> true)) arg_saved in
+                                  (* Restore registers stored on stack *)
+                                  let restore = restore_caller_save arg_saved' in
+                                  OK (instrs @ restore)
   in
   res >>= fun l ->
   OK (LComment (Format.asprintf "#<span style=\"background: pink;\"><b>Linear instr</b>: %a #</span>" (Rtl_print.dump_rtl_instr fname (None, None)) ins)::l)

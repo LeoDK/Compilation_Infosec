@@ -23,8 +23,17 @@ let rec cfg_expr_of_eexpr (e: Elang.expr) : expr res =
     cfg_expr_of_eexpr e >>= fun ee ->
     OK (Eunop (u, ee))
   | Elang.Eint i -> OK (Eint i)
-  | Elang.Evar v ->
-    OK (Evar v)
+  | Elang.Evar v -> OK (Evar v)
+  | Elang.Efuncall (funname, args) ->
+    cfg_exprs_of_args args >>= fun args' ->
+    OK (Ecall (funname, args'))
+
+and cfg_exprs_of_args (args: Elang.expr list) : expr list res =
+  match args with
+  | h::t -> cfg_expr_of_eexpr h >>= fun h' ->
+            cfg_exprs_of_args t >>= fun t' ->
+            OK (h'::t')
+  | [] -> OK ([])
 
 (* [cfg_node_of_einstr next cfg succ i] builds the CFG node(s) that correspond
    to the E instruction [i].
@@ -66,10 +75,10 @@ let rec cfg_node_of_einstr (next: int) (cfg : (int, cfg_node) Hashtbl.t)
   | Elang.Ireturn e ->
     cfg_expr_of_eexpr e >>= fun e ->
     Hashtbl.replace cfg next (Creturn e); OK (next, next + 1)
-  | Elang.Iprint e ->
-    cfg_expr_of_eexpr e >>= fun e ->
-    Hashtbl.replace cfg next (Cprint (e,succ));
-    OK (next, next + 1)
+  | Elang.Ifuncall (funname, args) ->
+    cfg_exprs_of_args args >>= fun args' ->
+    Hashtbl.replace cfg next (Ccall (funname, args', succ));
+    OK (next, next+1)
 
 (* Some nodes may be unreachable after the CFG is entirely generated. The
    [reachable_nodes n cfg] constructs the set of node identifiers that are
@@ -81,7 +90,7 @@ let rec reachable_nodes n (cfg: (int,cfg_node) Hashtbl.t) =
       match Hashtbl.find_option cfg n with
       | None -> reach
       | Some (Cnop succ)
-      | Some (Cprint (_, succ))
+      | Some (Ccall (_, _, succ))
       | Some (Cassign (_, _, succ)) -> reachable_aux succ reach
       | Some (Creturn _) -> reach
       | Some (Ccmp (_, s1, s2)) ->

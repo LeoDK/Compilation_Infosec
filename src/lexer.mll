@@ -30,7 +30,6 @@ rule token = parse
   | "void" { SYM_VOID }
   | "char" { SYM_CHAR }
   | "int" { SYM_INT }
-  | "print" { SYM_PRINT }
   | "struct" { SYM_STRUCT }
   | "if" { SYM_IF }
   | "else" { SYM_ELSE }

@@ -39,8 +39,18 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
     Format.fprintf oc "jmp %s" (print_node s)
   | Rmov (rd, rs) -> Format.fprintf oc "%s <- %s" (print_reg rd) (print_reg rs)
   | Rret r -> Format.fprintf oc "ret %s" (print_reg r)
-  | Rprint r -> Format.fprintf oc "print %s" (print_reg r)
   | Rlabel n -> Format.fprintf oc "%s_%d:" name n
+  | Rcall (ord, fname, rargs) -> 
+    let args_dump = List.fold_left (fun acc elem -> acc ^ (print_reg elem) ^ ",") "" rargs in
+    let args_dump_len = String.length args_dump in
+    let args_dump = if args_dump_len <> 0 then
+                      String.sub args_dump 0 (args_dump_len-1)
+                    else
+                      args_dump
+    in
+    (match ord with
+     | Some rd -> Format.fprintf oc "r%d <- %s(%s)" rd fname args_dump
+     | None -> Format.fprintf oc "%s(%s)" fname args_dump)
   end;
   Format.fprintf oc "\n";
   dump_liveness live_out "after"
