@@ -13,3 +13,5 @@ The compiler is not complete yet. For now supported features include :
  - Dead assignment and NOP elimination
  - Efficient RTL linearizer
  - Register allocation
+ - Function calls
+ - Basic types : void, int, char
