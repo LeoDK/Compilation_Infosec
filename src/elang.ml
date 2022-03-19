@@ -11,6 +11,7 @@ type expr =
   | Ebinop of binop * expr * expr
   | Eunop of unop * expr
   | Eint of int
+  | Echar of char
   | Evar of string
   | Efuncall of string * expr list
 
@@ -21,10 +22,13 @@ type instr =
   | Iblock of instr list
   | Ireturn of expr
   | Ifuncall of string * expr list
+  | Ideclaration of string
 
 type efun = {
-  funargs: ( string ) list;
+  funargs: (string * typ) list;
   funbody: instr;
+  funvartype: (string, typ) Hashtbl.t;
+  funrettype: typ;
 }
 
 type eprog = efun prog

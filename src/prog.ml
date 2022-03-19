@@ -31,11 +31,30 @@ let archi_mas () =
   | A64 -> MAS8
   | A32 -> MAS4
 
-
+(* A global definition is, at least for now, a function definition *)
 type 'a gdef = Gfun of 'a
 
+(* A program consists of a list of named global definitions, in order (functions, global variables, etc...) *)
 type 'a prog = (string * 'a gdef) list
 
+(* Variable types *)
+type typ =
+  | Tint
+  | Tchar
+  | Tvoid
+
+let string_of_type t =
+  match t with
+  | Tint -> "int"
+  | Tchar -> "char"
+  | Tvoid -> "void"
+
+let type_of_string (s : string) : typ res =
+  match s with
+  | "int" -> OK Tint
+  | "char" -> OK Tchar
+  | "void" -> OK Tvoid
+  | _ -> Error (Printf.sprintf "Unkown type %s" s)
 
 let dump_gdef dump_fun oc gd =
   match gd with

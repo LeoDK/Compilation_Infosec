@@ -7,6 +7,9 @@ open Cfg
 open Utils
 open Builtins
 
+(* Evaluate a CFG expression [e] with current state [st] in CFG program [cp]
+   If successful, returns the value corresponding to evaluation of this expr,
+   as well as the new state (there can be side effects of expressions, for instance if we call functions) *)
 let rec eval_cfgexpr oc st (cp: cprog) (e: expr) : (int * int state) res =
   match e with
   | Ebinop(b, e1, e2) ->
@@ -33,7 +36,10 @@ let rec eval_cfgexpr oc st (cp: cprog) (e: expr) : (int * int state) res =
      | None -> let arg_str = List.fold_left (fun acc elem -> acc ^ " " ^ (string_of_int elem)) "" args' in
                Error (Format.sprintf "CFG: Called function %s(%s) but got no return value in expr" fname arg_str))
 
-and eval_cfginstr oc st (cp: cprog) ht (n: int): (int option * int state) res =
+(* Evaluate CFG instruction of index [n], where [ht] is the hashtable corresponding to the
+   current function body. If successful, returns a value (in case of a return instruction),
+   as well as the new state *)
+and eval_cfginstr oc st (cp: cprog) (ht: (int, cfg_node) Hashtbl.t) (n: int): (int option * int state) res =
   match Hashtbl.find_option ht n with
   | None -> Error (Printf.sprintf "Invalid node identifier\n")
   | Some node ->
@@ -58,6 +64,8 @@ and eval_cfginstr oc st (cp: cprog) ht (n: int): (int option * int state) res =
                     OK (ret, st)) >>= fun (_, st') ->
       eval_cfginstr oc st' cp ht s
 
+(* In case of function calls, we need to evaluate all argument CFG expressions first.
+   This function returns, on success, the list of values corresponding to the evaluation of arguments *)
 and int_of_args (oc: Format.formatter) (st: int state) (cp: cprog) (args: expr list) : int list res =
   match args with
   | h::t -> eval_cfgexpr oc st cp h >>= fun (ret, st) ->
@@ -65,18 +73,21 @@ and int_of_args (oc: Format.formatter) (st: int state) (cp: cprog) (args: expr l
             OK(ret::args_int)
   | [] -> OK ([])
 
+(* Evaluate a full CFG function *)
 and eval_cfgfun oc st cp cfgfunname { cfgfunargs;
                                       cfgfunbody;
                                       cfgentry} vargs : (int option * int state) res =
+  (* Create a new state (local variables) for the function *)
   let st' = { st with env = Hashtbl.create 17 } in
+  (* Put the argument values in state environment *)
   match List.iter2 (fun a v -> Hashtbl.replace st'.env a v) cfgfunargs vargs with
   | () -> eval_cfginstr oc st' cp cfgfunbody cfgentry >>= fun (v, st') ->
-    OK (v, {st' with env = st.env})
-  | exception Invalid_argument _ ->
-    Error (Format.sprintf "CFG: Called function %s with %d arguments, expected %d.\n"
-             cfgfunname (List.length vargs) (List.length cfgfunargs)
-          )
+          OK (v, {st' with env = st.env})
+  | exception Invalid_argument _ -> Error (Format.sprintf "CFG: Called function %s with %d arguments, expected %d.\n"
+                                      cfgfunname (List.length vargs) (List.length cfgfunargs)
+                                    )
 
+(* Evaluate a full CFG program, which is just a list of global definitions *)
 let eval_cfgprog oc (cp: cprog) memsize params =
   let st = init_state memsize in
   find_function cp "main" >>= fun f ->

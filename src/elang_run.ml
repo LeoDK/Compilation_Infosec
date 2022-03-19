@@ -35,6 +35,7 @@ let eval_unop (u: unop) : int -> int =
 let rec eval_eexpr (oc: Format.formatter) (st: int state) (ep: eprog) (e : expr) : (int * int state) res =
   match e with
   | Eint n -> OK (n, st)
+  | Echar c -> OK (Char.code c, st)
   | Evar id -> option_to_res_bind (Hashtbl.find_option st.env id) 
                (Printf.sprintf "In eval_eexpr : unable to find variable %s" id)
                (fun x -> OK (x,st))
@@ -50,6 +51,7 @@ let rec eval_eexpr (oc: Format.formatter) (st: int state) (ep: eprog) (e : expr)
                                  | Some ret' -> OK (ret', state)
                                  | None -> let arg_str = List.fold_left (fun acc elem -> acc ^ " " ^ (string_of_int elem)) "" args' in
                                           Error (Format.sprintf "E: Called function %s(%s) but got no return value in expr" funname arg_str))
+
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].
 
    Le paramètre [oc] est un "output channel", dans lequel la fonction "print"
@@ -93,6 +95,7 @@ and eval_einstr (oc: Format.formatter) (st: int state) (ep: eprog) (ins: instr) 
                               | OK func -> eval_efun oc st ep func fname args'
                               | Error e -> do_builtin oc st.mem fname args' >>= fun ret ->
                                           OK (ret, st))
+  | Ideclaration varname -> OK (None, st)
 
 and int_of_args (oc: Format.formatter) (st: int state) (ep: eprog) (args: expr list) : int list res =
   match args with
@@ -106,7 +109,7 @@ and int_of_args (oc: Format.formatter) (st: int state) (ep: eprog) (args: expr l
 
    Cette fonction renvoie un couple (ret, st') avec la même signification que
    pour [eval_einstr]. *)
-and eval_efun (oc: Format.formatter) (st: int state) (ep: eprog) ({ funargs; funbody}: efun)
+and eval_efun (oc: Format.formatter) (st: int state) (ep: eprog) ({funargs; funbody; funvartype; funrettype}: efun)
     (fname: string) (vargs: int list)
   : (int option * int state) res =
   (* L'environnement d'une fonction (mapping des variables locales vers leurs
@@ -116,9 +119,9 @@ and eval_efun (oc: Format.formatter) (st: int state) (ep: eprog) ({ funargs; fun
      seulement ses arguments), puis on restore l'environnement de l'appelant. *)
   let env_save = Hashtbl.copy st.env in
   let env = Hashtbl.create 17 in
-  match List.iter2 (fun a v -> Hashtbl.replace env a v) funargs vargs with
+  match List.iter2 (fun a v -> Hashtbl.replace env a v) (List.map fst funargs) vargs with
   | () ->
-    eval_einstr oc { st with env } ep funbody >>= fun (v, st') ->
+    eval_einstr oc {st with env} ep funbody >>= fun (v, st') ->
     OK (v, { st' with env = env_save })
   | exception Invalid_argument _ ->
     Error (Format.sprintf

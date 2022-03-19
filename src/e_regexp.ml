@@ -109,26 +109,6 @@ let list_regexp : (regexp * (string -> token option)) list =
              )), Star (char_range ['*'])),
            keyword_regexp "*/")),
      fun s -> None);
-    (*
-    (Cat(keyword_regexp "/*",
-       Cat(
-         Star(
-           Alt(
-              char_range (List.filter (fun c -> c <> '*') alphabet),
-              Cat(
-                plus (char_regexp '*'),
-                char_range (List.filter (fun c -> c <> '*' && c <> '/') alphabet)
-              )
-           )
-         ),
-         Cat(
-           plus (keyword_regexp "*"),
-           char_regexp '/'
-         )
-       )
-     ),
-     fun s -> None);
-    *)
     (Cat (char_regexp '\'',
           Cat (char_range (List.filter (fun c -> c <> '\'' && c <> '\\') alphabet),
                char_regexp '\'')),

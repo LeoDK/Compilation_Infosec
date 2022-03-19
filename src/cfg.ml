@@ -4,6 +4,8 @@ open Utils
 open Batteries
 open BatList
 
+(* Different expressions than in elang, since elang expressions can be at a higher abstraction level.
+   For instance, there is no char representation of an expr, only integers (and this is how we represent all values in memory) *)
 type expr =
   | Ebinop of binop * expr * expr
   | Eunop of unop * expr
@@ -11,6 +13,7 @@ type expr =
   | Evar of string
   | Ecall of string * expr list
 
+(* A CFG node contains its successor id as last parameter *)
 type cfg_node =
   | Cassign of string * expr * int
   | Creturn of expr
@@ -18,6 +21,8 @@ type cfg_node =
   | Cnop of int
   | Ccall of string * expr list * int
 
+(* [cfgfunbody] is a Hashtable whose keys are CFG node unique identifiers,
+   and values are cfg_node types *)
 type cfg_fun = {
   cfgfunargs: string list;
   cfgfunbody: (int, cfg_node) Hashtbl.t;
@@ -25,7 +30,6 @@ type cfg_fun = {
 }
 
 type cprog = cfg_fun prog
-
 
 (* [succs cfg n] donne l'ensemble des successeurs d'un nœud [n] dans un CFG
    [cfg]. *)
