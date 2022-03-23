@@ -89,6 +89,7 @@ let list_regexp : (regexp * (string -> token option)) list =
     (char_regexp ';', fun s -> Some (SYM_SEMICOLON));
     (char_regexp ',', fun s -> Some (SYM_COMMA));
     (char_regexp '=', fun s -> Some (SYM_ASSIGN));
+    (char_regexp '&', fun s -> Some (SYM_AMPERSAND));
     (keyword_regexp "==", fun s -> Some (SYM_EQUALITY));
     (keyword_regexp "!=", fun s -> Some (SYM_NOTEQ));
     (keyword_regexp "<", fun s -> Some (SYM_LT));

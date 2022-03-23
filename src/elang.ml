@@ -14,6 +14,8 @@ type expr =
   | Echar of char
   | Evar of string
   | Efuncall of string * expr list
+  | Eaddrof of string (* we can have an address of a variable only *)
+  | Eload of expr
 
 type instr =
   | Iassign of string * expr
@@ -23,12 +25,15 @@ type instr =
   | Ireturn of expr
   | Ifuncall of string * expr list
   | Ideclaration of string
+  | Istore of expr * expr (* Istore (addr, value) : *(addr) = value *)
 
 type efun = {
   funargs: (string * typ) list;
   funbody: instr;
   funvartype: (string, typ) Hashtbl.t;
   funrettype: typ;
+  funvarinmem: (string, int) Hashtbl.t;
+  funstksz: int;
 }
 
 type eprog = efun prog

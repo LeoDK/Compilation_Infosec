@@ -42,19 +42,33 @@ type typ =
   | Tint
   | Tchar
   | Tvoid
+  | Tptr of typ
 
-let string_of_type t =
+let size_type t =
+  match t with
+  | Tint -> OK (size_of_mas (archi_mas ()))
+  | Tchar -> OK 1
+  | Tvoid -> Error "No size associated with type void\n"
+  | Tptr t -> OK (size_of_mas (archi_mas()))
+
+let rec string_of_type t =
   match t with
   | Tint -> "int"
   | Tchar -> "char"
   | Tvoid -> "void"
+  | Tptr t -> (string_of_type t) ^ "*"
 
-let type_of_string (s : string) : typ res =
+let rec type_of_string (s : string) : typ res =
   match s with
   | "int" -> OK Tint
   | "char" -> OK Tchar
   | "void" -> OK Tvoid
-  | _ -> Error (Printf.sprintf "Unkown type %s" s)
+  | _ ->  let l = String.length s in
+          if (l > 0) && (s.[l-1] = '*') then
+            type_of_string (String.sub s 0 (l-1)) >>= fun t ->
+            OK (Tptr t)
+          else
+            Error (Printf.sprintf "Unkown type %s" s)
 
 let dump_gdef dump_fun oc gd =
   match gd with

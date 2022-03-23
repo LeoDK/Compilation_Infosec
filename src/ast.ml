@@ -32,7 +32,7 @@ type tag = Tassign | Tif | Twhile | Tblock | Treturn
          | Tlistglobdef
          | Tfundef | Tfunname | Tfunargs | Tfunbody
          | Tassignvar
-         | Tidentifier
+         | Tidentifier | Taddress | Tderef
          | Tfuncall
 
 type tree = | Node of tag * tree list
@@ -79,6 +79,8 @@ let string_of_tag = function
   | Tassignvar -> "Tassignvar"
   | Tidentifier-> "Tid"
   | Tfuncall -> "Tcall"
+  | Taddress -> "Taddr"
+  | Tderef -> "Tderef"
 
 
 (* Écrit un fichier .dot qui correspond à un AST *)
