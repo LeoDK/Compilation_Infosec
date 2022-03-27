@@ -10,9 +10,11 @@ let rec vars_in_expr (e: expr) =
   match e with
   | Ebinop (op, e1, e2) -> Set.union (vars_in_expr e1) (vars_in_expr e2)
   | Eunop (op, e') -> vars_in_expr e'
-  | Eint (value) -> Set.empty
-  | Evar (var_name) -> Set.singleton var_name
+  | Eint value -> Set.empty
+  | Evar var -> Set.singleton var
   | Ecall (fname, args) -> vars_in_args args
+  | Estk offset -> Set.empty
+  | Eload (addr, size) -> vars_in_expr addr
 
 and vars_in_args (e: expr list) =
   match e with
@@ -29,6 +31,7 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
   | Ccmp (e, s1, s2) -> Set.union (vars_in_expr e) live_after
   | Cnop (s) -> live_after
   | Ccall (fname, args, s) -> Set.union (vars_in_args args) live_after
+  | Cstore (addr, value, size, s) -> Set.union (vars_in_expr addr) (vars_in_expr value)
 
 (* [live_after_node cfg n] renvoie l'ensemble des variables vivantes après le
    nœud [n] dans un CFG [cfg]. [lives] est l'état courant de l'analyse,

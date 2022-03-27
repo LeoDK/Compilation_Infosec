@@ -25,9 +25,12 @@ let rec dump_eexpr = function
   | Ebinop(b, e1, e2) -> Printf.sprintf "(%s %s %s)" (dump_eexpr e1) (dump_binop b) (dump_eexpr e2)
   | Eunop(u, e) -> Printf.sprintf "(%s %s)" (dump_unop u) (dump_eexpr e)
   | Eint i -> Printf.sprintf "%d" i
+  | Echar c -> Printf.sprintf "%c" c
   | Evar s -> Printf.sprintf "%s" s
   | Efuncall (funname, args) -> let args_dump = List.fold_left (fun acc elem -> acc ^ (dump_eexpr elem)) "" args in
                                 Printf.sprintf "%s (%s)" funname args_dump
+  | Eaddrof v -> Printf.sprintf "&%s" v
+  | Eload e -> Printf.sprintf "*(%s)" (dump_eexpr e)
 
 let indent_size = 2
 let spaces n =
@@ -50,10 +53,11 @@ let rec dump_einstr_rec indent oc i =
     Format.fprintf oc "while (%s) %a\n"
                          (dump_eexpr cond) (dump_einstr_rec (indent)) i
   | Iblock(il) ->
+    print_spaces oc indent;
     Format.fprintf oc "{\n";
     List.iter (Format.fprintf oc "%a" (dump_einstr_rec (indent + 1))) il;
     print_spaces oc indent;
-    Format.fprintf oc "}";
+    Format.fprintf oc "}\n";
   | Ireturn(e) ->
     print_spaces oc indent;
     Format.fprintf oc "return %s;\n" (dump_eexpr e)
@@ -66,15 +70,22 @@ let rec dump_einstr_rec indent oc i =
                     else
                       args_dump
     in
-    Format.fprintf oc "call %s (%s);\n" funname args_dump
+    Format.fprintf oc "%s (%s);\n" funname args_dump
+  | Ideclaration v -> 
+    print_spaces oc indent;
+    Format.fprintf oc "%s;\n" v
+  | Istore (e1, e2) ->
+    print_spaces oc indent;
+    Format.fprintf oc "*(%s) = %s\n" (dump_eexpr e1) (dump_eexpr e2)
 
 let dump_einstr oc i = dump_einstr_rec 0 oc i
 
 
-let dump_efun oc funname {funargs; funbody} =
-  Format.fprintf oc "%s(%s) {\n%a\n}\n"
+let dump_efun oc funname {funargs; funbody; funvartype; funrettype} =
+  Format.fprintf oc "%s %s(%s)\n%a\n\n"
+    (string_of_type funrettype)
     funname
-    (String.concat "," funargs)
+    (String.concat "," (List.map (fun (arg,t) -> (string_of_type t) ^ " " ^ arg) funargs))
     dump_einstr funbody
 
 let dump_eprog oc = dump_prog dump_efun oc

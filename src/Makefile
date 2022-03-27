@@ -16,7 +16,7 @@ PROF:=$(if $(PROF),-ocamlopt ocamloptp,)
 all: $(TG)
 
 $(TG): $(SRC)
-	ocamlbuild $(PROF) -cflags  -warn-error,"+a-26" -cflags -w,"-26" -menhir "menhir --unused-tokens" -use-ocamlfind $(TG)
+	ocamlbuild $(PROF)  -menhir "menhir --unused-tokens" -use-ocamlfind $(TG)
 
 test_lexer: archi.ml config.ml e_regexp.ml lexer_generator.ml symbols.ml test_lexer.ml utils.ml
 	ocamlbuild -use-ocamlfind test_lexer.native

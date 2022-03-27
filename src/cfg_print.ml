@@ -10,6 +10,8 @@ let rec dump_cfgexpr : expr -> string = function
   | Eint i -> Format.sprintf "%d" i
   | Evar s -> Format.sprintf "%s" s
   | Ecall (fname, args) -> Format.sprintf "%s(%s)" fname (dump_cfgcall_args args)
+  | Estk addr -> Format.sprintf "stack[%d]" addr
+  | Eload (addr, size) -> Format.sprintf "&(%s)" (dump_cfgexpr addr)
 
 and dump_cfgcall_args (args: expr list) : string =
   match args with
@@ -27,23 +29,24 @@ let dump_list_cfgexpr l =
 let dump_arrows oc fname n (node: cfg_node) =
   match node with
   | Cassign (_, _, succ)
+  | Ccall (_, _, succ)
+  | Cstore (_, _, _, succ)
   | Cnop succ ->
     Format.fprintf oc "n_%s_%d -> n_%s_%d\n" fname n fname succ
   | Creturn _ -> ()
   | Ccmp (_, succ1, succ2) ->
     Format.fprintf oc "n_%s_%d -> n_%s_%d [label=\"then\"]\n" fname n fname succ1;
     Format.fprintf oc "n_%s_%d -> n_%s_%d [label=\"else\"]\n" fname n fname succ2
-  | Ccall (funname, args, s) ->
-    Format.fprintf oc "n_%s_%d -> n_%s_%d\n" fname n fname s
 
 
 let dump_cfg_node oc (node: cfg_node) =
   match node with
-  | Cassign (v, e, _) -> Format.fprintf oc "%s = %s" v (dump_cfgexpr e)
+  | Cassign (v, e, _) -> Format.fprintf oc "%s <- %s" v (dump_cfgexpr e)
   | Creturn e -> Format.fprintf oc "return %s" (dump_cfgexpr e)
   | Ccmp (e, _, _) -> Format.fprintf oc "%s" (dump_cfgexpr e)
   | Cnop _ -> Format.fprintf oc "nop"
   | Ccall (fname, args, s) -> Format.fprintf oc "call %s(%s)" fname (dump_cfgcall_args args)
+  | Cstore (addr, value, size, s) -> Format.fprintf oc "&(%s) <- %s" (dump_cfgexpr addr) (dump_cfgexpr value)
 
 
 let dump_liveness_state oc ht state =
