@@ -162,9 +162,6 @@ and eval_einstr (oc: Format.formatter) (st: int state) (sp: int) (ep: eprog) (ef
                             eval_eexpr oc st sp ep ef typ_fun addr >>= fun (addr', st) ->
                             eval_eexpr oc st sp ep ef typ_fun value >>= fun (value', st) ->
                             Mem.write_bytes st.mem (sp+addr') (split_bytes size value') >>= fun _ ->
-                            Printf.printf "DEBUG : In store %d at address %d\n" value' addr';
-                            Mem.read_bytes_as_int st.mem (sp+addr') size >>= fun res ->
-                            Printf.printf "%d\n" res;
                             OK (None, st)
 
 and int_of_args oc st sp ep ef typ_fun (args: expr list) : (int list * int state) res =

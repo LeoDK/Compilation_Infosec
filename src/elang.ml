@@ -8,10 +8,10 @@ type binop = Eadd | Emul | Emod | Exor | Ediv | Esub (* binary operations *)
 type unop = Eneg
 
 type expr =
-  | Ebinop of binop * expr * expr
-  | Eunop of unop * expr
   | Eint of int
   | Echar of char
+  | Ebinop of binop * expr * expr
+  | Eunop of unop * expr
   | Evar of string
   | Efuncall of string * expr list
   | Eaddrof of string (* we can have an address of a variable only *)
