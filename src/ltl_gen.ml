@@ -309,27 +309,33 @@ let ltl_instrs_of_linear_instr fname live_out allocation
   | Rlabel l -> OK [LLabel (Format.sprintf "%s_%d" fname l)]
   | Rcall (ord, fname, rargs) ->  caller_save live_out allocation rargs >>= fun to_save ->
                                   let to_save = Set.fold (fun elem acc -> acc @ [elem]) to_save [] in
-                                  let save_regs_instructions, arg_saved, ofs = save_caller_save to_save (-numspilled) in
                                   (* Saving alive registers on stack (and therefore increasing the stack by decreasing sp) *)
-                                  let instrs = save_regs_instructions in
+                                  (* numspilled + 1 to begin to write under frame pointer (stack[fp - 8]) *)
+                                  let instrs, arg_saved, ofs = save_caller_save to_save (-(numspilled+1) * Archi.wordsize()) in
+                                  let instrs = (LAddi (reg_sp, reg_sp, ofs * Archi.wordsize()))::instrs in
+                                  (* Pass parameters (some of them on the stack) *)
                                   pass_parameters rargs allocation arg_saved >>= fun (parameter_passing_instructions, npush) ->
-                                  (* Pass parameters (some of them on the stack), call function, pop possible parameters on the stack *)
-                                  let instrs = instrs @ parameter_passing_instructions @ [LCall fname; LAddi (reg_sp, reg_sp, npush)] in
+                                  let instrs = instrs @ parameter_passing_instructions in
+                                  (* Call function, pop possible parameters on the stack *)
+                                  let instrs = instrs @ [LCall fname; LAddi (reg_sp, reg_sp, npush * Archi.wordsize())] in
                                   (* Put the result in rd if needed *)
-                                  (match ord with
+                                  begin match ord with
                                   (* get the real location associated with RTL register [rd] *)
-                                  | Some rd -> (match Hashtbl.find_option allocation rd with
-                                                | Some rd_alloc -> OK (instrs @ (make_loc_mov (Reg reg_a0) rd_alloc))
-                                                | None -> Error (Format.sprintf "Could not find allocation for RTL register %d\n" rd))
-                                  | None -> OK(instrs)) >>= fun instrs ->
-                                  (* Prevent [rd] from being restored *)
-                                  let arg_saved' = List.filter (fun (reg, ofs) -> (match ord with
-                                                                                   | Some rd -> if rd = reg then
-                                                                                                  false
-                                                                                                else true
-                                                                                   | None -> true)) arg_saved in
+                                  | Some rd ->  begin match Hashtbl.find_option allocation rd with
+                                                | Some rd_alloc ->
+                                                  let instrs = instrs @ (make_loc_mov (Reg reg_a0) rd_alloc) in
+                                                  (* Prevent [rd] from being restored *)
+                                                  let arg_saved = begin match rd_alloc with
+                                                                  | Reg r -> List.filter (fun (reg, ofs) -> r <> reg) arg_saved
+                                                                  | Stk offset -> arg_saved
+                                                                  end in
+                                                  OK (instrs, arg_saved)
+                                                | None -> Error (Format.sprintf "Could not find allocation for RTL register %d\n" rd)
+                                                end
+                                  | None -> OK (instrs, arg_saved)
+                                  end >>= fun (instrs, arg_saved) ->
                                   (* Restore registers stored on stack *)
-                                  let restore = restore_caller_save arg_saved' in
+                                  let restore = restore_caller_save arg_saved in
                                   OK (instrs @ restore)
   in
   res >>= fun l ->

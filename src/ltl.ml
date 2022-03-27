@@ -51,7 +51,7 @@ let reg_fp = reg_s0
 let reg_ret = reg_a0
 
 type ltl_instr =
-    LAddi of ltl_reg * ltl_reg * int
+  | LAddi of ltl_reg * ltl_reg * int
   | LSubi of ltl_reg * ltl_reg * int
   | LStore of ltl_reg * int * ltl_reg * mem_access_size (* LStore(rd, rofs, rs, sz) : store
                                                value in [rs] on [sz] bytes at
