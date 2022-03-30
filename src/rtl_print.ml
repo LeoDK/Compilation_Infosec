@@ -51,6 +51,12 @@ let dump_rtl_instr name (live_in, live_out) oc (i: rtl_instr) =
     (match ord with
      | Some rd -> Format.fprintf oc "r%d <- %s(%s)" rd fname args_dump
      | None -> Format.fprintf oc "%s(%s)" fname args_dump)
+  | Rstk (rd, i) ->
+    Format.fprintf oc "%s <- &(stk[%d])" (print_reg rd) i
+  | Rload (rd, rs, size) ->
+    Format.fprintf oc "%s <- *(%s){%d}" (print_reg rd) (print_reg rs) size
+  | Rstore (rd, rs, size) ->
+    Format.fprintf oc "*(%s){%d} <- %s" (print_reg rd) size (print_reg rs)
   end;
   Format.fprintf oc "\n";
   dump_liveness live_out "after"

@@ -49,12 +49,14 @@ let rec rtl_instrs_of_cfg_expr (next_reg, var2reg) (e: expr) =
                            (next_reg, l1 @ l2 @ [Rbinop (op, next_reg, rs1, rs2)], next_reg+1, var2reg)
   | Eunop (op, e) -> let rs, l, n, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) e in
                      (next_reg, l @ [Runop (op, next_reg, rs)], next_reg+1, var2reg)
-  | Eint (value) -> (next_reg, [Rconst (next_reg, value)], next_reg+1, var2reg)
-  | Evar (varname) -> let r, next_reg, var2reg = find_var (next_reg, var2reg) varname in
-                      (r, [], next_reg, var2reg)
+  | Eint value -> (next_reg, [Rconst (next_reg, value)], next_reg+1, var2reg)
+  | Evar var -> let r, next_reg, var2reg = find_var (next_reg, var2reg) var in
+                (r, [], next_reg, var2reg)
   | Ecall (fname, args) -> let rargs, l, next_reg, var2reg = rtl_instrs_of_fun_args (next_reg, var2reg) args in
                            (next_reg, l @ [Rcall (Some next_reg, fname, rargs)], next_reg+1, var2reg)
-                           
+  | Estk offset -> (next_reg, [Rstk (next_reg, offset)], next_reg+1, var2reg)
+  | Eload (addr, size) -> let rs, l, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) addr in
+                          (next_reg, l @ [Rload (next_reg, rs, size)], next_reg+1, var2reg)
 
 and rtl_instrs_of_fun_args (next_reg, var2reg) args =
   match args with
@@ -95,26 +97,30 @@ let rtl_instrs_of_cfg_node ((next_reg:int), (var2reg: (string*int) list)) (c: cf
   | Cnop (s) -> ([Rjmp s], next_reg, var2reg)
   | Ccall (fname, args, s) -> let rargs, l, next_reg, var2reg = rtl_instrs_of_fun_args (next_reg, var2reg) args in
                               (l @ [Rcall (None, fname, rargs); Rjmp s], next_reg, var2reg)
+  | Cstore (addr, value, size, s) ->  let rd, l_addr, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) addr in
+                                      let rs, l_value, next_reg, var2reg = rtl_instrs_of_cfg_expr (next_reg, var2reg) value in
+                                      (l_addr @ l_value @ [Rstore (rd, rs, size); Rjmp s], next_reg, var2reg)
 
-let rtl_instrs_of_cfg_fun cfgfunname ({ cfgfunargs; cfgfunbody; cfgentry }: cfg_fun) =
+let rtl_instrs_of_cfg_fun cfgfunname cf =
   let (rargs, next_reg, var2reg) =
     List.fold_left (fun (rargs, next_reg, var2reg) a ->
         let (r, next_reg, var2reg) = find_var (next_reg, var2reg) a in
         (rargs @ [r], next_reg, var2reg)
       )
-      ([], 0, []) cfgfunargs
+      ([], 0, []) cf.cfgfunargs
   in
   let rtlfunbody = Hashtbl.create 17 in
   let (next_reg, var2reg) = Hashtbl.fold (fun n node (next_reg, var2reg)->
       let (l, next_reg, var2reg) = rtl_instrs_of_cfg_node (next_reg, var2reg) node in
       Hashtbl.replace rtlfunbody n l;
       (next_reg, var2reg)
-    ) cfgfunbody (next_reg, var2reg) in
+    ) cf.cfgfunbody (next_reg, var2reg) in
   {
     rtlfunargs = rargs;
-    rtlfunentry = cfgentry;
+    rtlfunentry = cf.cfgentry;
     rtlfunbody;
     rtlfuninfo = var2reg;
+    rtlfunstksz = cf.cfgfunstksz;
   }
 
 let rtl_of_gdef funname = function

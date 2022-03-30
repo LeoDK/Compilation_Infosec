@@ -10,8 +10,8 @@ let rec dump_cfgexpr : expr -> string = function
   | Eint i -> Format.sprintf "%d" i
   | Evar s -> Format.sprintf "%s" s
   | Ecall (fname, args) -> Format.sprintf "%s(%s)" fname (dump_cfgcall_args args)
-  | Estk addr -> Format.sprintf "stack[%d]" addr
-  | Eload (addr, size) -> Format.sprintf "&(%s)" (dump_cfgexpr addr)
+  | Estk addr -> Format.sprintf "&stack[%d]" addr
+  | Eload (addr, size) -> Format.sprintf "*(%s)" (dump_cfgexpr addr)
 
 and dump_cfgcall_args (args: expr list) : string =
   match args with
@@ -46,7 +46,7 @@ let dump_cfg_node oc (node: cfg_node) =
   | Ccmp (e, _, _) -> Format.fprintf oc "%s" (dump_cfgexpr e)
   | Cnop _ -> Format.fprintf oc "nop"
   | Ccall (fname, args, s) -> Format.fprintf oc "call %s(%s)" fname (dump_cfgcall_args args)
-  | Cstore (addr, value, size, s) -> Format.fprintf oc "&(%s) <- %s" (dump_cfgexpr addr) (dump_cfgexpr value)
+  | Cstore (addr, value, size, s) -> Format.fprintf oc "*(%s) <- %s" (dump_cfgexpr addr) (dump_cfgexpr value)
 
 
 let dump_liveness_state oc ht state =
