@@ -15,3 +15,4 @@ The compiler is not complete yet. For now supported features include :
  - Register allocation
  - Function calls
  - Basic types : void, int, char
+ - Pointers !
