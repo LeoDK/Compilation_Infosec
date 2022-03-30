@@ -98,7 +98,6 @@ let rec exec_rtl_instr oc (st: state) (sp: int) (rp: rtl_fun prog) rtlfunname (r
     end
 
   | Rstk (rd, offset) ->
-    (*Mem.read_bytes_as_int st.mem (sp + offset) (Archi.wordsize()) >>= fun value ->*)
     Hashtbl.replace st.regs rd (sp + offset);
     OK (None, st)
 

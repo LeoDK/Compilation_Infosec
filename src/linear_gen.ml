@@ -57,20 +57,20 @@ let remove_useless_labels (l: rtl_instr list) =
   List.filter is_useful_instr l
 
 
-let linear_of_rtl_fun
-    ({ rtlfunargs; rtlfunbody; rtlfunentry; rtlfuninfo }: rtl_fun) =
-  let block_order = sort_blocks rtlfunbody rtlfunentry in
+let linear_of_rtl_fun rf =
+  let block_order = sort_blocks rf.rtlfunbody rf.rtlfunentry in
   let linearinstrs =
-    Rjmp rtlfunentry ::
+    Rjmp rf.rtlfunentry ::
     List.fold_left (fun l n ->
-        match Hashtbl.find_option rtlfunbody n with
+        match Hashtbl.find_option rf.rtlfunbody n with
         | None -> l
         | Some li -> l @ Rlabel(n) :: li
       ) [] block_order in
-  { linearfunargs = rtlfunargs;
+  { linearfunargs = rf.rtlfunargs;
     linearfunbody =
       linearinstrs |> remove_useless_jumps |> remove_useless_labels;
-    linearfuninfo = rtlfuninfo;
+    linearfuninfo = rf.rtlfuninfo;
+    linearfunstksz = rf.rtlfunstksz;
   }
 
 let linear_of_rtl_gdef = function

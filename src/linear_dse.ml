@@ -14,12 +14,12 @@ let dse_instr (ins: rtl_instr) live =
    [ins]
 
 
-let dse_fun live {linearfunargs; linearfunbody; linearfuninfo; } =
+let dse_fun live lf =
   let body =
-    linearfunbody
+    lf.linearfunbody
     |> List.mapi (fun i ins -> dse_instr ins (Hashtbl.find_default live i Set.empty))
     |> List.concat in
-  { linearfunargs; linearfunbody = body; linearfuninfo; }
+  { linearfunargs = lf.linearfunargs; linearfunbody = body; linearfuninfo = lf.linearfuninfo; linearfunstksz = lf.linearfunstksz }
 
 
 let dse_prog p live =
