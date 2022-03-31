@@ -355,7 +355,9 @@ let ltl_instrs_of_linear_instr fname live_out allocation numspilled epilogue_lab
 
   | Rstk (rd, offset) ->
     store_loc reg_tmp1 allocation rd >>= fun (ltl_store, ltl_rd) ->
-    OK (LAddi (ltl_rd, reg_fp, - ((numspilled+1) * (Archi.wordsize()) + offset)) :: ltl_store)
+    let chunks = offset / (Archi.wordsize()) in
+    let chunk_offset = offset mod (Archi.wordsize()) in
+    OK (LAddi (ltl_rd, reg_fp, - (numspilled + chunks + 1) * (Archi.wordsize()) + chunk_offset) :: ltl_store)
 
   | Rload (rd, rs, size) ->
     load_loc reg_tmp1 allocation rs >>= fun (ltl_load, ltl_rs) ->

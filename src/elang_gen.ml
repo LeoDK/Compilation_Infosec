@@ -388,6 +388,39 @@ let rec get_args_types (args_nodes : tree list) : (string * typ) list res =
   | [] -> OK []
   | head::tail -> Error (Printf.sprintf "Unacceptable ast in make_args_of_ast_list : %s\n" (string_of_ast head))
 
+(* This function orders conveniently stack variables so that padding is ensured.
+   Returns the tuple (funvarinmem, funstksz),
+   where [funvarinmem] is a hashtable giving the offset in the stack of a given variable
+   and [funstksz] is the size of the stack to be allocated (must be a multiple of the architecture word) *)
+let tweak_padding (stack_vars: string Set.t) typ_var : ((string, int) Hashtbl.t * int) res =
+  let h = Hashtbl.create (Set.cardinal stack_vars) in
+  (* Sort from biggest to lowest (decreasing order) *)
+  let stack_vars_unsorted = Set.to_list stack_vars in
+  let stack_vars_size = List.map (fun elem ->  let t = Hashtbl.find typ_var elem in
+                                                  size_type t >>= fun t' -> OK (t')) stack_vars_unsorted in
+  let stack_vars_size = List.fold_left (fun acc elem -> match acc with
+                                                        | Error e -> acc
+                                                        | OK l -> begin match elem with
+                                                                  | Error e -> acc
+                                                                  | OK elem' -> OK (l@[elem'])
+                                                                  end) (OK []) stack_vars_size in
+  stack_vars_size >>= fun stack_vars_size ->
+  (* this is the list of (size, varname) *)
+  let stack_vars_unsorted = List.mapi (fun index elem -> (List.nth stack_vars_size index, elem)) stack_vars_unsorted in
+  let stack_vars_sorted = List.sort (fun (s1, v1) (s2, v2) -> s2 - s1) stack_vars_unsorted in
+  let stack_vars_sorted = List.map snd stack_vars_sorted in
+  (* Add elements to the stack *)
+  let fold_f (acc : int res ) (elem : string) =
+    acc >>= fun acc' ->
+    let t = Hashtbl.find typ_var elem in
+    size_type t >>= fun t' ->
+    Hashtbl.replace h elem acc';
+    OK (acc' + t')
+  in
+  List.fold_left fold_f (OK 0) stack_vars_sorted >>= fun stack_size ->
+  let locations = (stack_size + Archi.wordsize() - 1) / (Archi.wordsize ()) in
+  OK (h, locations * (Archi.wordsize()))
+
 (* Make the CFG function that corresponds too the AST [a] *)
 let make_fundef_of_ast (a: tree) typ_fun : (string * efun) res =
   match a with
@@ -406,15 +439,7 @@ let make_fundef_of_ast (a: tree) typ_fun : (string * efun) res =
     make_einstr_of_ast fbody typ_var typ_fun >>= fun fbody ->
     (* Computing function stack *)
     let stack_vars = addr_taken_instr fbody in
-    let funvarinmem = Hashtbl.create (Set.cardinal stack_vars) in
-    let fold_f (elem : string) (acc : int res ) =
-      acc >>= fun acc' ->
-      let t = Hashtbl.find typ_var elem in
-      size_type t >>= fun t' ->
-      Hashtbl.replace funvarinmem elem acc';
-      OK (acc' + t')
-    in
-    Set.fold fold_f stack_vars (OK 0) >>= fun funstksz ->
+    tweak_padding stack_vars typ_var >>= fun (funvarinmem, funstksz) ->
     OK(fname, {funargs = funargs; funbody = fbody; funvartype = typ_var; funrettype = funrettype;
                funvarinmem=funvarinmem; funstksz = funstksz})
   | _ ->
