@@ -20,12 +20,20 @@ let rec succs_of_rtl_instrs il : int list =
 (* effectue un tri topologique des blocs.  *)
 
 let sort_blocks (nodes: (int, rtl_instr list) Hashtbl.t) (entry: int) =
-  let rec add_block order n =
+  let rec add_block order n to_process =
+    let to_process = List.filter (fun elem -> elem <> n) to_process in
     let il = Hashtbl.fold (fun n' il' acc -> if n=n' then il' else acc) nodes [] in
     let succs = succs_of_rtl_instrs il in
     let new_succs = List.filter (fun x -> not (List.mem x order)) succs in
-    List.fold_left add_block (order@[n]) new_succs
-  in add_block [] entry
+    match new_succs with
+    | h::t -> add_block (order@[n]) h to_process
+    | [] -> begin match to_process with
+            | h'::t' -> add_block (order@[n]) h' t'
+            | [] -> (order @ [n])
+            end
+  in
+  let to_process = Hashtbl.fold (fun key value acc -> if key <> entry then key::acc else acc) nodes [] in
+  add_block [] entry to_process
 
 (* Supprime les jumps inutiles (Jmp à un label défini juste en dessous). *)
 let rec remove_useless_jumps (l: rtl_instr list) =
