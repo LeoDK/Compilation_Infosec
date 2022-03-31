@@ -18,7 +18,7 @@ let gen_live (i: rtl_instr) =
   | Rcall (ord, fname, rargs) -> List.fold_left (fun acc elem -> Set.add elem acc) Set.empty rargs
   | Rstk (rd, offset) -> Set.empty
   | Rload (rd, rs, size) -> Set.singleton rs
-  | Rstore (rd, rs, size) -> Set.singleton rs
+  | Rstore (rd, rs, size) -> Set.of_list [rd; rs]
 
 let kill_live (i: rtl_instr) =
   match i with
