@@ -178,8 +178,8 @@ let cfg_fun_of_efun typ_fun ef =
 
 let cfg_gdef_of_edef typ_fun gname (gd : efun gdef): cfg_fun gdef res =
   match gd with
-    Gfun ef ->  cfg_fun_of_efun typ_fun ef >>= fun cf ->
-                Hashtbl.replace typ_fun gname ((List.map snd ef.funargs), ef.funrettype);
+    Gfun ef ->  Hashtbl.replace typ_fun gname ((List.map snd ef.funargs), ef.funrettype);
+                cfg_fun_of_efun typ_fun ef >>= fun cf ->
                 OK (Gfun cf)
 
 let cfg_prog_of_eprog (ep: eprog) : cfg_fun prog res =

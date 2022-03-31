@@ -399,11 +399,11 @@ let make_fundef_of_ast (a: tree) typ_fun : (string * efun) res =
     (* Get the types of the arguments *)
     get_args_types fargs >>= fun funargs ->
     let typ_var = Hashtbl.create (List.length fargs) in
+    (* Adding current function to known function signatures *)
+    Hashtbl.replace typ_fun fname ((List.map snd funargs), funrettype);
     (* Putting arguments in local variables *)
     List.iter (fun (varname, t) -> Hashtbl.replace typ_var varname t) funargs;
     make_einstr_of_ast fbody typ_var typ_fun >>= fun fbody ->
-    (* Adding current function to known function signatures *)
-    Hashtbl.add typ_fun fname ((List.map snd funargs), funrettype);
     (* Computing function stack *)
     let stack_vars = addr_taken_instr fbody in
     let funvarinmem = Hashtbl.create (Set.cardinal stack_vars) in

@@ -31,7 +31,8 @@ let live_cfg_node (node: cfg_node) (live_after: string Set.t) =
   | Ccmp (e, s1, s2) -> Set.union (vars_in_expr e) live_after
   | Cnop (s) -> live_after
   | Ccall (fname, args, s) -> Set.union (vars_in_args args) live_after
-  | Cstore (addr, value, size, s) -> Set.union (vars_in_expr addr) (vars_in_expr value)
+  | Cstore (addr, value, size, s) ->  let used = Set.union (vars_in_expr addr) (vars_in_expr value) in
+                                      Set.union live_after used
 
 (* [live_after_node cfg n] renvoie l'ensemble des variables vivantes après le
    nœud [n] dans un CFG [cfg]. [lives] est l'état courant de l'analyse,

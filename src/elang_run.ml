@@ -1,5 +1,6 @@
 open Elang
 open Elang_gen
+open Elang_print
 open Batteries
 open BatList
 open Prog
@@ -85,13 +86,13 @@ let rec eval_eexpr  (oc: Format.formatter) (st: int state) (sp : int) (ep: eprog
                   | None -> Error (Printf.sprintf "Variable %s is not located in memory\n" v)
                   end
 
-  | Eload addr ->   type_expr ef.funvartype typ_fun e >>= fun t ->
+  | Eload addr ->   type_expr ef.funvartype typ_fun addr >>= fun t ->
                     begin match t with
                     | Tptr t' ->  size_type t' >>= fun size ->
                                   eval_eexpr oc st sp ep ef typ_fun addr >>= fun (addr', st) ->
-                                  Mem.read_bytes_as_int st.mem addr' size >>= fun value ->
+                                  Mem.read_bytes_as_int st.mem (sp + addr') size >>= fun value ->
                                   OK (value, st)
-                    | t' -> Error (Printf.sprintf "Cannot load value at address given by expression of type %s in eval_eexpr\n" (string_of_type t'))
+                    | t' -> Error (Printf.sprintf "Cannot load value at address in eval_eexpr : expected pointer but got type %s\n" (string_of_type t'))
                     end
 
 (* [eval_einstr oc st ins] évalue l'instrution [ins] en partant de l'état [st].

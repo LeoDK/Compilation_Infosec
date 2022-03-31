@@ -71,18 +71,19 @@ let store_loc tmp allocation r =
 (* saves registers in [to_save] on the stack at offsets [sp + 8 * o, sp + 8 * (o
    + 1), sp + 8 * (o + 2)...]. Returns:
 
-   - an association list [(reg,ofs)] (meaning register reg is saved at [sp+ofs])
-   - the list of store instructions - the next offset to be written. *)
-let save_caller_save to_save ofs =
+   - an association list [(reg,ofs)] (meaning register reg is saved at [fp+ofs])
+   - the list of store instructions
+   - the next offset to be written, but starting from stack pointer (which should contain other data). *)
+let save_caller_save numlocals numspilled to_save ofs =
   List.fold_left (fun (instrs, arg_saved, ofs) reg ->
       (instrs @ [LStore(reg_sp, (Archi.wordsize ()) * ofs, reg, (archi_mas ()))],
-       (reg,ofs)::arg_saved, ofs + 1)
+       (reg, -(numlocals + numspilled + (List.length to_save) - ofs))::arg_saved, ofs + 1)
     ) ([], [], ofs) to_save
 
 (* Given a list [(reg,ofs)], loads [sp+ofs] into [reg]. *)
 let restore_caller_save arg_saved =
   List.map
-    (fun (reg, ofs) -> LLoad(reg, reg_sp, (Archi.wordsize ()) * ofs, (archi_mas ())))
+    (fun (reg, ofs) -> LLoad(reg, reg_fp, (Archi.wordsize ()) * ofs, (archi_mas ())))
     arg_saved
 
 let num_parameters_passed_on_stack regs =
@@ -194,13 +195,13 @@ let pass_parameters rargs allocation arg_saved =
           begin match src with
             | Reg rs ->  (rd::overwritten, [LMov(rd, rs)],[], npush)
             | Stk o -> (rd::overwritten,
-                        [LLoad(rd, reg_sp, (Archi.wordsize ()) * o, (archi_mas ()))],
+                        [LLoad(rd, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))],
                         [], npush)
           end else
           begin match src with
             | Reg rs -> (overwritten, [], make_push rs@pushes, npush+1)
             | Stk o ->  (overwritten, [],
-                         LLoad(reg_tmp1, reg_sp, (Archi.wordsize ()) * o, (archi_mas ()))
+                         LLoad(reg_tmp1, reg_fp, (Archi.wordsize ()) * o, (archi_mas ()))
                          ::make_push reg_tmp1 @ pushes,
                          npush+1)
           end
@@ -311,7 +312,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation numspilled epilogue_lab
   | Rmov (rd, rs) ->
     load_loc reg_tmp1 allocation rs >>= fun (ltl_load, ltl_rs) ->
     store_loc reg_tmp1 allocation rd >>= fun (ltl_store, ltl_rd) ->
-    OK (ltl_load @ LMov(ltl_rd, ltl_rs) :: ltl_load)
+    OK (ltl_load @ LMov(ltl_rd, ltl_rs) :: ltl_store)
 
   | Rret rs ->
     load_loc reg_tmp1 allocation rs >>= fun (ltl_load, ltl_rs) ->
@@ -324,7 +325,7 @@ let ltl_instrs_of_linear_instr fname live_out allocation numspilled epilogue_lab
     caller_save live_out allocation rargs >>= fun to_save ->
     let to_save = Set.fold (fun elem acc -> acc @ [elem]) to_save [] in
     (* Decrease stack pointer, and execute all instructions to save previous registers on stack *)
-    let instrs, arg_saved, ofs = save_caller_save to_save 0 in
+    let instrs, arg_saved, ofs = save_caller_save numlocals numspilled to_save 0 in
     let instrs = (LAddi (reg_sp, reg_sp, - ofs * (Archi.wordsize())))::instrs in
     (* Pass parameters (some of them on the stack) *)
     pass_parameters rargs allocation arg_saved >>= fun (parameter_passing_instructions, npush) ->
@@ -363,10 +364,10 @@ let ltl_instrs_of_linear_instr fname live_out allocation numspilled epilogue_lab
     OK (ltl_load @ (LLoad (ltl_rd, ltl_rs, 0, mas) :: ltl_store))
 
   | Rstore (rd, rs, size) ->
-    load_loc reg_tmp1 allocation rs >>= fun (ltl_load, ltl_rs) ->
-    store_loc reg_tmp2 allocation rd >>= fun (ltl_store, ltl_rd) ->
+    load_loc reg_tmp1 allocation rs >>= fun (ltl_load_rs, ltl_rs) ->
+    load_loc reg_tmp2 allocation rd >>= fun (ltl_load_rd, ltl_rd) ->
     mas_of_size size >>= fun mas ->
-    OK (ltl_load @ (LStore (ltl_rd, 0, ltl_rs, mas)) :: ltl_store)
+    OK (ltl_load_rs @ ltl_load_rd @ [LStore (ltl_rd, 0, ltl_rs, mas)])
 
   in
   res >>= fun l ->
